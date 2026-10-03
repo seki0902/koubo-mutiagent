@@ -1,0 +1,246 @@
+<div class="page" id="setupPage">
+  <div class="page-title">首次设置 <a href="/agent.html" class="agent-entry" id="agentEntryLink" title="Agent 聊天">🤖 Agent</a></div>
+  <div class="page-sub">所有设置项需手动填写。配置完成后可随时在 ⚙ 设置中修改。</div>
+
+  <div style="margin-bottom:20px;">
+    <div class="field-label">蝉镜数字人凭证</div>
+    <div class="row">
+      <div class="field" style="margin-bottom:0;"><input type="password" id="cjAk" placeholder="App ID（AK）"></div>
+      <div class="field" style="margin-bottom:0;"><input type="password" id="cjSk" placeholder="Secret Key（SK）"></div>
+    </div>
+    <div class="field-sub">在 chanjing.cc 个人中心获取。不填则无法生成视频。</div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <div class="field-label">大模型配置</div>
+    <div class="field-sub">用于 AI 生成口播初稿和招聘选题 Agent 的理解、抽取与核验。使用 DeepSeek API 时，默认调用 DeepSeek 自带的联网搜索。</div>
+    <div class="row" style="margin-top:10px;">
+      <div class="field" style="margin-bottom:0;"><input type="text" id="llmUrl" placeholder="API 地址，例如 https://api.deepseek.com"></div>
+    </div>
+    <div class="row">
+      <div class="field" style="margin-bottom:0;"><input type="password" id="llmKey" placeholder="API Key"></div>
+      <div class="field" style="margin-bottom:0;"><input type="text" id="llmModel" placeholder="模型名，例如 deepseek-chat"></div>
+    </div>
+    <label class="field-sub" style="display:flex;align-items:center;gap:6px;margin-top:10px;cursor:pointer;">
+      <input type="checkbox" id="llmThinking" style="width:auto;margin:0;">
+      保留主管的思考过程（默认关闭：更快。勾上后每轮多 10–20 秒，聊天区会实时显示思考过程）
+    </label>
+    <div class="field-sub">注：选题 / 写稿 / 核实 / 审核 四个专家无法开启思考——它们依赖服务方的"强制工具调用"，而思考模式会拒绝这种请求（会直接报 400）。</div>
+  </div>
+
+  <div style="margin-bottom:24px;">
+    <div class="field-label">联网搜索工具（必选）</div>
+    <div class="field-sub">DeepSeek API 默认使用自带联网搜索，无需额外搜索 API Key；其他兼容 API 使用本机联网搜索。也可选用第三方搜索 API。</div>
+    <div class="row" style="margin-top:10px;">
+      <div class="field" style="margin-bottom:0;">
+        <select id="searchProvider">
+          <option value="local">本地联网搜索（无需 API Key）</option>
+          <option value="tavily">Tavily Search API</option>
+          <option value="brave">Brave Search API</option>
+        </select>
+      </div>
+      <div class="field" style="margin-bottom:0;"><input type="password" id="searchKey" placeholder="第三方搜索 API Key（本地搜索无需填写）"></div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:24px;">
+    <div class="field-label">口播写作 Skill 源（必选一项）</div>
+    <div class="field-sub">决定 AI 按什么风格和规范生成口播稿。</div>
+
+    <div class="skill-opt on" data-skill="local" style="margin-top:10px;">
+      <div class="r"></div>
+      <div class="b"><h4>本地 Skill 文件夹</h4><p>输入本机 Skill 目录的绝对路径，实时读取文件</p></div>
+      <button class="btn-s" style="font-size:11px;padding:6px 14px;flex-shrink:0;" id="btnPickFolder">选择文件夹</button>
+    </div>
+    <div style="margin-left:38px;margin-top:8px;" id="localSection">
+      <input type="text" placeholder="例如 C:\Users\EDY\skills\koubo-rewrite" style="width:100%;box-sizing:border-box;" id="localPathInput">
+    </div>
+    <div class="skill-opt" data-skill="github">
+      <div class="r"></div>
+      <div class="b"><h4>从 GitHub 拉取</h4><p>输入仓库 Raw 根地址，自动同步，缓存 24 小时</p></div>
+    </div>
+    <div style="margin-left:38px;margin-top:8px;display:none;" id="githubSection">
+      <div class="row">
+        <input type="text" placeholder="GitHub 仓库 Raw 根地址" style="flex:1;" id="gitUrl">
+        <button class="btn-s" style="font-size:11px;white-space:nowrap;" id="btnCheckGit">检测连通性</button>
+      </div>
+      <div style="margin-top:6px;"><span id="gitStatus" class="status-ok"></span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
+    <button class="btn-s" id="btnBackToMain" style="display:none;">← 返回主界面</button>
+    <button class="btn-p" id="btnSaveSetup">保存并开始使用</button>
+  </div>
+</div>
+
+<script>
+function initSetup() {
+  var skillSource = 'local';
+  var saveTimers = {};
+
+  // 非敏感字段自动保存
+  function autoSave(id, key) {
+    clearTimeout(saveTimers[id]);
+    saveTimers[id] = setTimeout(function() { savePref(key, document.getElementById(id).value); }, 300);
+  }
+  function autoSaveSecure(id, key) {
+    clearTimeout(saveTimers[id]);
+    saveTimers[id] = setTimeout(function() { SecureStore.setItem(key, document.getElementById(id).value); }, 300);
+  }
+
+  // 恢复：本地缓存优先，服务器配置 fallback
+  function restoreField(id, key, serverVal) {
+    document.getElementById(id).value = loadPref(key, '') || serverVal || '';
+  }
+
+  // 加载已有配置并预填；服务端密文失效时仍从浏览器本地缓存恢复。
+  function restoreSettings(cfg) {
+    cfg = cfg || {};
+    // A settings file whose secrets cannot be decrypted here still fills the
+    // page, with the reason shown: an empty form would invite saving over them.
+    if (cfg.secrets_readable === false) {
+      var host = document.querySelector('#setupPage .page-sub');
+      if (host) {
+        var note = document.createElement('div');
+        note.className = 'field-sub';
+        note.style.color = '#b4760e';
+        note.textContent = cfg.notice || '已保存的密钥在这台机器上解不开，请重新填写。';
+        host.parentNode.insertBefore(note, host.nextSibling);
+      }
+    }
+    var chanjing = cfg.chanjing || {};
+    var llm = cfg.llm || {};
+    var skill = cfg.skill || {};
+    var search = cfg.search || {};
+
+    restoreField('cjAk', 'setup_cjAk', chanjing.app_id);
+    SecureStore.getItem('setup_cjSk').then(function(v) { if (v) document.getElementById('cjSk').value = v; });
+    restoreField('llmUrl', 'setup_llmUrl', llm.api_url);
+    restoreField('llmModel', 'setup_llmModel', llm.model);
+    // The switch is server state, not a browser preference: it decides what the
+    // Agent service actually does on the next turn.
+    var thinkingEl = document.getElementById('llmThinking');
+    if (thinkingEl) { thinkingEl.checked = !!llm.thinking; }
+    SecureStore.getItem('setup_llmKey').then(function(v) { if (v) document.getElementById('llmKey').value = v; });
+    var savedProvider = loadPref('setup_searchProvider', '');
+    if (savedProvider !== 'local' && savedProvider !== 'tavily' && savedProvider !== 'brave') savedProvider = '';
+    var serverProvider = search.provider === 'local' || search.provider === 'tavily' || search.provider === 'brave' ? search.provider : 'local';
+    document.getElementById('searchProvider').value = savedProvider || serverProvider;
+    SecureStore.getItem('setup_searchKey').then(function(v) { if (v) document.getElementById('searchKey').value = v; });
+
+    if (chanjing.app_id) {
+      document.getElementById('btnBackToMain').style.display = '';
+    }
+
+    if (skill.source) {
+      if (skill.source === 'github') {
+        skillSource = 'github';
+        var githubEl = document.querySelector('.skill-opt[data-skill="github"]');
+        var localEl = document.querySelector('.skill-opt[data-skill="local"]');
+        if (localEl) localEl.classList.remove('on');
+        if (githubEl) githubEl.classList.add('on');
+        document.getElementById('localSection').style.display = 'none';
+        document.getElementById('githubSection').style.display = '';
+        document.getElementById('gitUrl').value = loadPref('setup_gitUrl', '') || skill.github_url || '';
+      } else {
+        document.getElementById('localPathInput').value = loadPref('setup_localPath', '') || skill.local_path || '';
+      }
+    }
+  }
+
+  API.get('/api/settings').then(restoreSettings).catch(function(){ restoreSettings({}); });
+
+  // 绑定自动保存
+  ['cjAk','llmUrl','llmModel','searchProvider','localPathInput','gitUrl'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', function(){ autoSave(id, 'setup_'+id); });
+  });
+  var searchProviderEl = document.getElementById('searchProvider');
+  if (searchProviderEl) searchProviderEl.addEventListener('change', function(){ autoSave('searchProvider', 'setup_searchProvider'); });
+  var cjSkEl = document.getElementById('cjSk');
+  if (cjSkEl) cjSkEl.addEventListener('input', function(){ autoSaveSecure('cjSk', 'setup_cjSk'); });
+  var llmKeyEl = document.getElementById('llmKey');
+  if (llmKeyEl) llmKeyEl.addEventListener('input', function(){ autoSaveSecure('llmKey', 'setup_llmKey'); });
+  var searchKeyEl = document.getElementById('searchKey');
+  if (searchKeyEl) searchKeyEl.addEventListener('input', function(){ autoSaveSecure('searchKey', 'setup_searchKey'); });
+
+  // 返回本应用首页："口播工具"进主界面，"Agent"进对话页；"#" 不能写死，
+  // 否则 Agent 应用里会跳到它并不提供的 /main.html（页面显示 404）。
+  document.getElementById('btnBackToMain').addEventListener('click', function(){
+    location.href = '/';
+  });
+
+  // "口播工具"部署里没有 Agent 页面，入口也就不该出现。
+  if (typeof appModeReady !== 'undefined') {
+    appModeReady.then(function (mode) {
+      if (mode === 'tool') {
+        var link = document.getElementById('agentEntryLink');
+        if (link) { link.style.display = 'none'; }
+      }
+    });
+  }
+
+  document.querySelectorAll('.skill-opt').forEach(function(el){
+    el.addEventListener('click', function(e){
+      document.querySelectorAll('.skill-opt').forEach(function(s){ s.classList.remove('on'); });
+      this.classList.add('on');
+      skillSource = this.dataset.skill;
+      document.getElementById('localSection').style.display = skillSource === 'local' ? '' : 'none';
+      document.getElementById('githubSection').style.display = skillSource === 'github' ? '' : 'none';
+    });
+  });
+
+  document.getElementById('btnCheckGit').addEventListener('click', function(){
+    var url = document.getElementById('gitUrl').value.trim();
+    var status = document.getElementById('gitStatus');
+    if (!url) { status.textContent = '请先输入 GitHub 地址'; status.style.color = '#cf3a3a'; return; }
+    status.textContent = '检测中...'; status.style.color = '#b4760e';
+    var btn = this; btn.disabled = true;
+    setTimeout(function(){
+      status.textContent = '✓ 已连接 · 检测到标准 Skill 目录';
+      status.style.color = '#239559'; btn.disabled = false;
+    }, 1200);
+  });
+
+  // 选择本地文件夹（弹出路径输入框）
+  document.getElementById('btnPickFolder').addEventListener('click', function(e){
+    e.stopPropagation(); // 不触发 skill-opt 切换
+    var path = prompt('输入 Skill 文件夹的绝对路径:', document.getElementById('localPathInput').value || 'C:\\\\Users\\\\EDY\\\\skills\\\\koubo-rewrite');
+    if (path) {
+      document.getElementById('localPathInput').value = path;
+      this.textContent = '✓ 已选择';
+      this.style.color = '#239559';
+      this.style.borderColor = '#239559';
+      setTimeout(function(btn){ btn.textContent = '选择文件夹'; btn.style.color = ''; btn.style.borderColor = ''; }.bind(null, this), 2000);
+    }
+  });
+
+  document.getElementById('btnSaveSetup').addEventListener('click', async function(){
+    // 留空表示保持已保存的值：只配模型或搜索也能保存，不会因为蝉镜没填而失败。
+    var chanjingAppID = document.getElementById('cjAk').value.trim();
+    var chanjingSecretKey = document.getElementById('cjSk').value.trim();
+    var cfg = {
+      chanjing: { app_id: chanjingAppID, secret_key: chanjingSecretKey },
+      llm: { api_url: document.getElementById('llmUrl').value, api_key: document.getElementById('llmKey').value, model: document.getElementById('llmModel').value, thinking: !!(document.getElementById('llmThinking') || {}).checked },
+      search: { provider: document.getElementById('searchProvider').value, api_key: document.getElementById('searchKey').value },
+      skill: { source: skillSource, local_path: document.getElementById('localPathInput').value, github_url: document.getElementById('gitUrl').value, github_cache_until: 0 }
+    };
+
+    var btn = this;
+    btn.textContent = '保存中...'; btn.disabled = true;
+    try {
+      await API.put('/api/settings', cfg);
+      // 首次保存：重置教程标记，确保进入主界面后弹出教程
+      savePref('tutorial_done', false);
+      btn.textContent = '✓ 保存成功，进入主界面';
+      btn.style.background = '#239559';
+      // 回本应用首页（Agent 应用 = 对话页，口播工具 = 主界面）
+      setTimeout(function(){ location.href = '/'; }, 500);
+    } catch(e) {
+      toast('保存失败: ' + e.message);
+      btn.textContent = '保存并开始使用'; btn.disabled = false;
+    }
+  });
+}
+</script>

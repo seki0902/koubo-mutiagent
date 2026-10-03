@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>口播视频工具 · Agent 聊天</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="agent-body">
+
+<div class="agent-wrap">
+
+  <header class="agent-head">
+    <div>
+      <div class="page-title">Agent 聊天</div>
+      <div class="page-sub">和 Supervisor 连续对话：选题、写稿、审稿、数字人提交</div>
+    </div>
+    <div class="agent-head-actions">
+      <span class="agent-session" id="agentSessionLabel" title="当前会话 ID"></span>
+      <button class="btn-s agent-new" id="btnNewSession" type="button">新会话</button>
+      <a class="btn-s agent-back" href="/settings.html">设置</a>
+    </div>
+  </header>
+
+  <div class="agent-activity" id="agentActivity" aria-live="polite"></div>
+
+  <main class="agent-main">
+    <div class="agent-columns">
+
+      <section class="agent-chat">
+        <div class="agent-log" id="agentLog" aria-live="polite"></div>
+
+        <form class="agent-composer" id="agentForm" autocomplete="off">
+          <textarea id="agentInput" rows="1" placeholder="说点什么，例如：今天做啥好呢"></textarea>
+          <button class="btn-p" id="btnSend" type="submit">发送</button>
+        </form>
+
+        <div class="agent-hint" id="agentHint">Enter 发送，Shift+Enter 换行</div>
+      </section>
+
+      <aside class="agent-side" id="agentSide">
+        <div class="agent-side-head">
+          <span>当前任务</span>
+          <button class="btn-s agent-side-refresh" id="btnRefreshPanel" type="button">刷新</button>
+        </div>
+        <div class="agent-side-body" id="agentSideBody">
+          <div class="agent-side-empty">正在读取当前任务…</div>
+        </div>
+
+        <div class="agent-side-head agent-config-head">
+          <span>生成视频任务</span>
+          <button class="btn-s agent-side-refresh" id="btnRefreshTasks" type="button">刷新</button>
+        </div>
+        <div class="agent-side-body" id="agentTasksBody">
+          <div class="agent-side-empty">点“刷新”查看这个应用提交的视频任务</div>
+        </div>
+
+        <div class="agent-side-head agent-config-head">
+          <span>模型设置</span>
+          <a class="btn-s agent-link" href="/settings.html">去设置</a>
+        </div>
+        <div class="agent-config" id="agentConfigPanel">
+          <div class="agent-config-note">
+            模型（API 地址 / 模型名 / API Key）、联网搜索和数字人凭证统一在「数字人 / 搜索设置」里填一次，
+            这一页不再单独填，避免两份设置各说各话。保存后下一轮对话立即生效，不需要重启服务。
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+</div>
+
+<script src="/agent.js?v=9"></script>
+</body>
+</html>

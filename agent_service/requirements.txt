@@ -1,0 +1,14 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+pydantic>=2.13,<3
+langchain>=1.0,<2
+langgraph>=1.2,<2
+langgraph-checkpoint-sqlite>=2.0,<4
+# Provider packages for the two configured model providers.  Without these the
+# Agent service starts but the first turn fails, which is a confusing way to
+# learn that a dependency is missing.
+langchain-deepseek>=1.0
+langchain-openai>=1.0
+# Decrypts the model key saved by the frontend Agent panel, using the same
+# AES-256-GCM derivation the Go settings file already uses.
+pycryptodome>=3.20

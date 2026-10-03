@@ -1,0 +1,26 @@
+koubo-video-tool.exe
+koubo-video-tool.exe~
+koubo-tool.exe
+koubo-tool.exe~
+data/
+.idea/
+.playwright-cli/
+release-koubo-video-tool/
+server.log
+*.log
+chanjing/voice id/
+artifacts/
+experiments/**/__pycache__/
+*.exe
+*.exe~
+!koubo-video-tool-2.0.exe
+
+# Python Agent Service
+__pycache__/
+*.py[cod]
+.pytest_cache/
+agent_service/.venv/
+# Local business/checkpointer databases only; agent_service/db/ also holds the
+# schema module, so the directory itself must stay trackable.
+*.sqlite
+*.sqlite3

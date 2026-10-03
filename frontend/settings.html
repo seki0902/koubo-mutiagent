@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字人 / 搜索设置 · 口播视频工具</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>window.KOUBO_NO_ROUTER = true;</script>
+<script src="/app.js?v=6"></script>
+<script>
+// setup.html is a fragment: it needs this shell, app.js, and an explicit
+// initSetup() call.  Linking to the fragment directly (as the Agent page used
+// to) showed an empty, unstyled form whose save button could not work.
+(async function () {
+  await loadPage('/setup.html');
+  if (typeof initSetup === 'function') { initSetup(); }
+  // The fragment hides "返回主界面" while 蝉镜 credentials are missing, which
+  // traps anyone who only wants to configure the model and the search tool.
+  var back = document.getElementById('btnBackToMain');
+  if (back) { back.style.display = ''; }
+})();
+</script>
+</body>
+</html>
